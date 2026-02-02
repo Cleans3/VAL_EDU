@@ -185,12 +185,6 @@ To modify session settings, update PHP configuration or add to index.php:
 ini_set('session.gc_maxlifetime', 3600); // 1 hour
 ```
 
-### Charset Configuration
-
-UTF-8 is configured in `Base/Database.php`:
-```php
-$this->connection->set_charset("utf8mb4");
-```
 
 ## 🎓 Configuration Management - Learning Notes
 
@@ -346,6 +340,13 @@ class Database {
 
 This project uses **hard-coded configuration for learning purposes**. Understanding how this works is valuable, but remember that **production applications should always use environment variables** to keep sensitive data secure and enable flexible deployments.
 
+### Charset Configuration
+
+UTF-8 is configured in `Base/Database.php`:
+```php
+$this->connection->set_charset("utf8mb4");
+```
+
 ## 📁 Project Structure
 
 ```
@@ -408,4 +409,457 @@ VAL_EDU/
 │   │
 │   └── Utility Scripts                # Helper scripts
 │       ├── generate_password.php      # Password generation
-│       ├── create_
+│       ├── create_sample_data.php     # Sample data generator
+│       └── create_sample_payments.php # Sample payment data
+│
+└── .gitignore                         # Git ignore rules
+```
+
+## 🚀 Usage
+
+### Access the Application
+
+1. **Start XAMPP:**
+   - Open XAMPP Control Panel
+   - Start Apache and MySQL services
+
+2. **Open in Browser:**
+   ```
+   http://localhost/VAL_EDU/webapp/
+   ```
+
+3. **Login:**
+   - Use credentials from the database
+   - Default admin can be created using `generate_password.php`
+
+### Main Application URLs
+
+| URL | Purpose |
+|-----|---------|
+| `/` | Home page |
+| `/admin` | Admin dashboard |
+| `/student` | Student portal |
+| `/tutor` | Tutor dashboard |
+| `/parent` | Parent portal |
+| `/auth/login` | Login page |
+| `/auth/register` | Registration page |
+| `/auth/logout` | Logout |
+
+## 📡 API Documentation
+
+### Authentication API
+
+#### Login
+```
+POST /api/student/auth/login
+Content-Type: application/json
+
+{
+  "username": "user@example.com",
+  "password": "password123"
+}
+
+Response: { "success": true, "message": "Login successful", "user": {...} }
+```
+
+#### Logout
+```
+POST /api/student/auth/logout
+Response: { "success": true, "message": "Logout successful" }
+```
+
+### Student API Endpoints
+
+#### Get Student Profile
+```
+GET /api/student/profile
+Authorization: Bearer {token}
+Response: { "id": 1, "name": "John Doe", "email": "john@example.com", ... }
+```
+
+#### Get Student Courses
+```
+GET /api/student/courses
+Response: [ { "id": 1, "name": "Math 101", "tutor": "Jane Smith" }, ... ]
+```
+
+#### Get Student Schedule
+```
+GET /api/student/schedule
+Response: [ { "date": "2024-01-15", "time": "10:00", "course": "Math 101" }, ... ]
+```
+
+#### Get Payments
+```
+GET /api/student/payments
+Response: [ { "id": 1, "amount": 100, "date": "2024-01-15", "status": "Paid" }, ... ]
+```
+
+### Course API
+
+#### Get All Courses
+```
+GET /api/courses
+Response: [ { "id": 1, "name": "Math 101", "tutor": "Jane Smith", "price": 100 }, ... ]
+```
+
+#### Enroll in Course
+```
+POST /api/student/courses/enroll
+Content-Type: application/json
+
+{ "course_id": 1 }
+
+Response: { "success": true, "message": "Enrolled successfully" }
+```
+
+## 🗄️ Database Schema
+
+### Tables Overview
+
+| Table | Purpose |
+|-------|---------|
+| `users` | All user accounts (admin, tutor, student, parent) |
+| `students` | Student profiles and information |
+| `tutors` | Tutor profiles and rates |
+| `courses` | Course definitions |
+| `enrollments` | Student course enrollments |
+| `payments` | Payment records |
+| `sessions` | Student-tutor sessions |
+
+### Users Table
+```sql
+CREATE TABLE users (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  username VARCHAR(255) UNIQUE NOT NULL,
+  email VARCHAR(255) UNIQUE NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  role ENUM('admin', 'tutor', 'student', 'parent') NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+```
+
+### Students Table
+```sql
+CREATE TABLE students (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  phone VARCHAR(20),
+  parent_id INT,
+  enrollment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (parent_id) REFERENCES users(id)
+);
+```
+
+### Tutors Table
+```sql
+CREATE TABLE tutors (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  user_id INT NOT NULL,
+  first_name VARCHAR(255),
+  last_name VARCHAR(255),
+  specialization VARCHAR(255),
+  hourly_rate DECIMAL(10, 2),
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id)
+);
+```
+
+### Courses Table
+```sql
+CREATE TABLE courses (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  name VARCHAR(255) NOT NULL,
+  description TEXT,
+  tutor_id INT NOT NULL,
+  price DECIMAL(10, 2),
+  duration_hours INT,
+  max_students INT,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (tutor_id) REFERENCES tutors(id)
+);
+```
+
+### Payments Table
+```sql
+CREATE TABLE payments (
+  id INT PRIMARY KEY AUTO_INCREMENT,
+  student_id INT NOT NULL,
+  amount DECIMAL(10, 2),
+  payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  status ENUM('pending', 'completed', 'failed', 'refunded') DEFAULT 'pending',
+  course_id INT,
+  FOREIGN KEY (student_id) REFERENCES students(id),
+  FOREIGN KEY (course_id) REFERENCES courses(id)
+);
+```
+
+## 👥 User Roles
+
+### Admin Role
+- Manage all users and permissions
+- View financial reports
+- Manage courses and enrollments
+- System configuration and monitoring
+
+**Permissions:**
+- Create/Edit/Delete users
+- View all transactions
+- Generate reports
+- Manage system settings
+
+### Tutor Role
+- Create and manage courses
+- View enrolled students
+- Track sessions and payments
+- Manage schedule
+
+**Permissions:**
+- Create courses
+- View student information
+- Track hours and earnings
+- Manage availability
+
+### Student Role
+- Enroll in courses
+- View course materials
+- Track progress
+- Make payments
+
+**Permissions:**
+- View assigned courses
+- Submit assignments
+- View grades
+- Make course payments
+
+### Parent Role
+- Monitor student progress
+- View enrolled courses
+- View payment history
+- Receive notifications
+
+**Permissions:**
+- View student's courses
+- View student's progress
+- View payment records
+- Receive update notifications
+
+## 🧪 Testing
+
+### Running Tests
+
+The project has organized test suite located in `webapp/tests/`:
+
+```bash
+# Unit tests (component-level testing)
+php webapp/tests/unit/run_tests.php
+
+# Integration tests (multi-component workflows)
+php webapp/tests/integration/run_tests.php
+
+# End-to-end tests (full browser testing)
+php webapp/tests/e2e/run_tests.php
+
+# Run all tests
+bash webapp/tests/run_all_tests.sh
+```
+
+### Test Organization
+
+```
+tests/
+├── unit/              # Isolated component tests (12 files)
+├── integration/       # Multi-component tests (8 files)
+├── e2e/              # Browser-based tests (12 files)
+├── fixtures/         # Test data and factories (1 file)
+├── scripts/          # Test utilities (1 file)
+├── archived/         # Debug files (7 files)
+├── README.md         # Detailed testing guide
+├── QUICK_REFERENCE.md # Command quick reference
+├── CONSOLIDATION_GUIDE.md # Test redundancy report
+└── index.html        # Interactive test browser
+```
+
+For detailed testing information, see `webapp/tests/README.md`
+
+## 📚 Documentation
+
+Additional documentation files:
+
+- **TESTING_REFACTOR_SUMMARY.md** - Test organization and refactoring details
+- **PAYMENT_SYSTEM_DOCUMENTATION.md** - Payment system architecture
+- **USERNAME_ROUTING.md** - URL routing reference
+- **webapp/tests/README.md** - Comprehensive testing guide
+- **webapp/tests/QUICK_REFERENCE.md** - Testing commands reference
+- **webapp/tests/CONSOLIDATION_GUIDE.md** - Test consolidation roadmap
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### Issue: Database Connection Error
+**Problem:** `Connection refused` or `No database selected`
+
+**Solution:**
+1. Verify MySQL is running (check XAMPP Control Panel)
+2. Check database credentials in `Base/Database.php`
+3. Verify `ValEduDatabase` exists in MySQL
+4. Run: `mysql -u root < webapp/ValEduDatabase.sql`
+
+#### Issue: 404 Not Found Errors
+**Problem:** `The requested resource was not found`
+
+**Solution:**
+1. Verify `.htaccess` is in `webapp/` directory
+2. Check that Apache `mod_rewrite` is enabled
+3. Restart Apache after enabling modules
+4. Access via `http://localhost/VAL_EDU/webapp/`
+
+#### Issue: Session Not Working
+**Problem:** User keeps getting logged out
+
+**Solution:**
+1. Check session folder has write permissions
+2. Verify `session.save_path` in php.ini
+3. Check browser allows cookies
+4. Clear browser cache and cookies
+
+#### Issue: Character Encoding Issues
+**Problem:** Vietnamese characters display as `?` or garbled
+
+**Solution:**
+1. Verify database charset is `utf8mb4`
+2. Check HTML meta charset: `<meta charset="UTF-8">`
+3. Verify MySQL connection charset in `Base/Database.php`:
+   ```php
+   $this->connection->set_charset("utf8mb4");
+   ```
+
+#### Issue: Permission Denied Errors
+**Problem:** `Permission denied` when accessing files
+
+**Solution:**
+1. Check file permissions: `chmod 755 webapp/`
+2. Verify Apache user has read/write access
+3. Check logs in `apache/logs/error.log`
+
+#### Issue: White Blank Page
+**Problem:** Page loads but shows nothing
+
+**Solution:**
+1. Check PHP error logs: `php -r "phpinfo();" | grep "error_log"`
+2. Enable display_errors temporarily in `php.ini`
+3. Check for syntax errors in controller/view files
+4. Review Apache error log
+
+## 🤝 Contributing
+
+### Code Style Guidelines
+
+- **PHP:** Follow PSR-2 coding standards
+- **JavaScript:** Use consistent indentation (2 spaces)
+- **HTML/CSS:** Semantic markup, mobile-first design
+- **Comments:** Add meaningful comments for complex logic
+
+### How to Contribute
+
+1. Fork the repository
+2. Create feature branch: `git checkout -b feature/your-feature`
+3. Make your changes
+4. Write/update tests as needed
+5. Commit with clear messages: `git commit -m "Add your feature description"`
+6. Push to branch: `git push origin feature/your-feature`
+7. Open Pull Request with description
+
+### Testing Before Submission
+
+- Run all tests: `bash webapp/tests/run_all_tests.sh`
+- Verify no PHP errors: `php -l yourfile.php`
+- Check database migrations work
+- Test in multiple browsers if UI changes
+
+### Code Review Process
+
+- At least one approval required before merge
+- CI/CD checks must pass
+- No merge conflicts with main branch
+- Updated documentation for new features
+
+## 📄 License
+
+Educational Use License - This project is provided for learning and educational purposes.
+
+## 👤 Author & Support
+
+**Project:** VAL_EDU - Educational Platform
+**Purpose:** Learning and educational management
+**Support:** For issues and feedback, visit https://github.com/anomalyco/VAL_EDU
+
+## 🗺️ Roadmap
+
+### Planned Features
+
+#### Phase 1: Core Enhancements
+- [ ] Implement `.env` file configuration support
+- [ ] Add comprehensive error logging
+- [ ] Implement request/response caching
+- [ ] Add email notifications
+
+#### Phase 2: Advanced Features
+- [ ] Real-time chat between students and tutors
+- [ ] Video conferencing integration
+- [ ] Mobile app development
+- [ ] API rate limiting
+
+#### Phase 3: Analytics & Reporting
+- [ ] Student performance analytics
+- [ ] Financial reporting dashboard
+- [ ] Usage metrics and insights
+- [ ] Export to various formats (PDF, Excel)
+
+#### Phase 4: Production Ready
+- [ ] Implement multi-environment configuration
+- [ ] Add comprehensive test coverage (>80%)
+- [ ] Security audit and penetration testing
+- [ ] Performance optimization and caching
+- [ ] Deployment pipeline (CI/CD)
+
+## ⚠️ Known Limitations
+
+- **Single Server:** Not designed for distributed/multi-server deployment
+- **Hard-coded Configuration:** Uses hard-coded values (see Configuration section)
+- **No API Authentication:** API endpoints use session-based auth only
+- **Limited Error Logging:** Basic error handling without comprehensive logging
+- **No Background Jobs:** Synchronous processing only
+- **Basic Input Validation:** Client-side and server-side validation present but could be enhanced
+- **No HTTPS/SSL:** Designed for local development without encryption
+
+## 📝 Changelog
+
+### Version 1.0.0 - Initial Release (Feb 2026)
+- ✅ Multi-role user system (Admin, Tutor, Student, Parent)
+- ✅ Course management and enrollment
+- ✅ Payment tracking system
+- ✅ Calendar and scheduling
+- ✅ Student and parent portals
+- ✅ Comprehensive test suite
+- ✅ Complete documentation
+- ✅ API endpoints for core functionality
+
+### Upcoming
+- Environment variable configuration (.env)
+- Enhanced error logging
+- Real-time notifications
+- Video integration
+- Analytics dashboard
+
+---
+
+**Last Updated:** February 2026
+**Repository:** https://github.com/anomalyco/VAL_EDU
+**Questions or Issues?** Visit the GitHub issues page
+
